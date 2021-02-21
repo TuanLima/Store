@@ -1,0 +1,68 @@
+import 'package:mystore/test_storage/main.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class GoogleSignInProvider extends ChangeNotifier {
+  GoogleSignIn googleSignIn = GoogleSignIn(scopes: <String>[
+    'email',
+    'https://www.googleapis.com/auth/devstorage.read_write'
+  ]);
+  bool _isLoggedIn;
+  bool _isSigningIn;
+
+  GoogleSignInProvider() {
+    _isLoggedIn = false;
+    _isSigningIn = false;
+  }
+
+  bool get isLoggerdIn => _isLoggedIn;
+  bool get isSigningIn => _isSigningIn;
+
+  Future<void> login(BuildContext context) async {
+    GoogleSignInAccount _account;
+    GoogleSignInAuthentication _googleAuth;
+    UserCredential _userCredential;
+
+    await googleSignIn
+        .signIn()
+        .then((account) => _account = account)
+        .catchError((error) => print(
+            'A problem has occurred while signing in to Google:\n$error'));
+
+    if (_account == null) {
+      _isSigningIn = false;
+      return;
+    } else {
+      try {
+        _googleAuth = await _account.authentication;
+      } catch (e) {
+        print(
+            'A problem has occurred while authenticating account:\n${e.message}');
+      }
+
+      final _credential = GoogleAuthProvider.credential(
+          accessToken: _googleAuth.accessToken, idToken: _googleAuth.idToken);
+
+      try {
+        _userCredential =
+            await FirebaseAuth.instance.signInWithCredential(_credential);
+      } catch (e) {
+        print(
+            'A problem occurred while signing in with credential:\n${e.message}');
+      }
+
+      _isSigningIn = false;
+      assert(_userCredential != null);
+      _isLoggedIn = true;
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              '${_userCredential.user.displayName} logged in succesfully')));
+
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (context) => StorageExampleApp()));
+    }
+  }
+}
